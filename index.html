@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出庫依頼書</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #f5f5f0;
+    --surface: #fff;
+    --border: #ccc;
+    --border-focus: #2d5a27;
+    --text: #1a1a1a;
+    --text-sub: #666;
+    --accent: #2d5a27;
+    --accent-hover: #3d7a35;
+    --danger: #a33;
+    --highlight: #e8f0e6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .app-header {
+    background: var(--text);
+    color: #fff;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .app-header .left { display: flex; align-items: center; gap: 12px; }
+  .app-header span { opacity: 0.5; font-size: 12px; }
+  .header-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.7);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 4px 12px;
+    cursor: pointer;
+  }
+  .header-btn:hover { border-color: #fff; color: #fff; }
+
+  .app-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+
+  /* === Import Screen === */
+  .import-screen {
+    max-width: 600px;
+    margin: 60px auto;
+    padding: 0 16px;
+  }
+  .import-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .import-desc {
+    font-size: 13px;
+    color: var(--text-sub);
+    margin-bottom: 24px;
+  }
+  .import-box {
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    padding: 40px 20px;
+    text-align: center;
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .import-box:hover { border-color: var(--accent); }
+  .import-box.dragover { border-color: var(--accent); background: var(--highlight); }
+  .import-box-icon { font-size: 32px; margin-bottom: 8px; }
+  .import-box-text { font-size: 14px; color: var(--text-sub); }
+  .import-box-sub { font-size: 12px; color: var(--text-sub); margin-top: 4px; opacity: 0.7; }
+
+  .import-divider {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-sub);
+    margin: 16px 0;
+  }
+  .import-paste {
+    width: 100%;
+    height: 120px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    resize: vertical;
+    outline: none;
+  }
+  .import-paste:focus { border-color: var(--border-focus); }
+  .import-paste::placeholder { color: #aaa; }
+
+  .import-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .import-error {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: var(--danger);
+    padding: 8px 12px;
+    font-size: 13px;
+    margin-top: 12px;
+  }
+
+  .import-success {
+    background: var(--highlight);
+    border: 1px solid #a3c49a;
+    color: var(--accent);
+    padding: 8px 12px;
+    font-size: 13px;
+    margin-top: 12px;
+  }
+
+  /* === Data Management Modal === */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    width: 90%;
+    max-width: 500px;
+    padding: 24px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .modal-section {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
+  }
+  .modal-section:last-child { border-bottom: none; }
+  .modal-section-title {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .modal-info {
+    font-size: 12px;
+    color: var(--text-sub);
+    margin-bottom: 8px;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  /* === Form === */
+  .form-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    align-items: flex-end;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+  .form-group.narrow { flex: 0 0 100px; }
+
+  .form-group label {
+    font-size: 12px;
+    color: var(--text-sub);
+    font-weight: 500;
+  }
+
+  .form-group select,
+  .form-group input {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    outline: none;
+  }
+  .form-group select:focus,
+  .form-group input:focus { border-color: var(--border-focus); }
+
+  /* Searchable select */
+  .search-select { position: relative; }
+  .search-select input {
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    outline: none;
+  }
+  .search-select input:focus { border-color: var(--border-focus); }
+  .search-select input::placeholder { color: #aaa; }
+
+  .search-select .dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid var(--border-focus);
+    border-top: none;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .search-select.open .dropdown { display: block; }
+
+  .dropdown-group-label {
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: #f8f8f5;
+    border-top: 1px solid #eee;
+    position: sticky;
+    top: 0;
+  }
+  .dropdown-item {
+    padding: 7px 10px 7px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dropdown-item:hover,
+  .dropdown-item.active { background: var(--highlight); }
+  .dropdown-item .code {
+    color: var(--text-sub);
+    font-size: 11px;
+    margin-left: 6px;
+  }
+  .dropdown-empty {
+    padding: 12px;
+    text-align: center;
+    color: var(--text-sub);
+    font-size: 13px;
+  }
+
+  .selected-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: var(--highlight);
+    border: 1px solid #c2d4be;
+    font-size: 13px;
+    width: fit-content;
+  }
+  .selected-tag .clear-btn {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+  }
+
+  /* Buttons */
+  .btn {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 20px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-add { background: var(--accent); color: #fff; }
+  .btn-add:hover { background: var(--accent-hover); }
+  .btn-add:disabled { background: #aaa; cursor: not-allowed; }
+
+  .btn-print { background: var(--text); color: #fff; padding: 12px 32px; font-size: 15px; }
+  .btn-print:hover { background: #333; }
+
+  .btn-secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .btn-secondary:hover { background: #f0f0f0; }
+
+  .btn-danger {
+    background: none;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+
+  .btn-remove {
+    background: none;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 4px 12px;
+    font-size: 12px;
+  }
+  .btn-remove:hover { background: var(--danger); color: #fff; }
+
+  /* Queue */
+  .queue-section { margin-bottom: 16px; }
+  .queue-title { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; font-weight: 500; }
+  .queue-empty {
+    color: var(--text-sub);
+    font-size: 13px;
+    padding: 20px;
+    text-align: center;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+  }
+  .queue-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .queue-item-info { flex: 1; }
+  .queue-item-info strong { font-weight: 500; }
+  .queue-item-meta { color: var(--text-sub); font-size: 12px; margin-top: 2px; }
+
+  .actions-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+  }
+  .actions-left { display: flex; gap: 8px; align-items: center; }
+  .page-info { font-size: 12px; color: var(--text-sub); }
+
+  /* Print */
+  .print-area { display: none; }
+
+  @media print {
+    body { background: #fff; }
+    .app-header, .app-container, .modal-overlay { display: none !important; }
+    .print-area { display: block !important; }
+    @page { size: A4 portrait; margin: 10mm 15mm; }
+
+    .print-page {
+      page-break-after: always;
+      height: 267mm;
+      display: flex;
+      flex-direction: column;
+    }
+    .print-page:last-child { page-break-after: auto; }
+
+    .print-slip {
+      height: 128mm;
+      padding: 8mm 5mm;
+      display: flex;
+      flex-direction: column;
+    }
+    .print-slip:first-child {
+      border-bottom: 1px dashed #999;
+      margin-bottom: 5mm;
+    }
+
+    .slip-title {
+      text-align: center;
+      font-size: 18pt;
+      font-weight: 700;
+      font-family: 'Noto Sans JP', serif;
+      letter-spacing: 0.3em;
+      margin-bottom: 10mm;
+    }
+
+    .slip-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11pt;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .slip-table th, .slip-table td {
+      border: 1px solid #333;
+      padding: 4mm 5mm;
+      text-align: left;
+    }
+    .slip-table th {
+      background: #f0f0f0;
+      font-weight: 500;
+      width: 25%;
+      white-space: nowrap;
+    }
+    .slip-empty { height: 128mm; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.9/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+
+const LS_KEY = "shukko_product_data";
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveData(data) {
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+}
+
+function validateData(data) {
+  if (!data || typeof data !== "object") return "JSONオブジェクトではありません";
+  if (!Array.isArray(data.products) || data.products.length === 0) return "products配列が空または存在しません";
+  if (!Array.isArray(data.destinations) || data.destinations.length === 0) return "destinations配列が空または存在しません";
+  for (let i = 0; i < data.products.length; i++) {
+    const p = data.products[i];
+    if (!p.category || !p.code || !p.name) return `products[${i}] に category/code/name が不足しています`;
+  }
+  return null;
+}
+
+// === Import Screen ===
+function ImportScreen({ onImport }) {
+  const [pasteText, setPasteText] = useState("");
+  const [error, setError] = useState("");
+  const [dragover, setDragover] = useState(false);
+  const fileRef = useRef(null);
+
+  const processJson = (text) => {
+    setError("");
+    try {
+      const data = JSON.parse(text);
+      const err = validateData(data);
+      if (err) { setError(err); return; }
+      saveData(data);
+      onImport(data);
+    } catch (e) {
+      setError("JSONのパースに失敗: " + e.message);
+    }
+  };
+
+  const handleFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => processJson(e.target.result);
+    reader.readAsText(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragover(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  return (
+    <div className="import-screen">
+      <div className="import-title">製品データのインポート</div>
+      <div className="import-desc">
+        このアプリには製品データが含まれていません。JSONファイルを読み込んでください。
+      </div>
+
+      <div
+        className={`import-box ${dragover ? "dragover" : ""}`}
+        onClick={() => fileRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
+        onDragLeave={() => setDragover(false)}
+        onDrop={handleDrop}
+      >
+        <div className="import-box-icon">📁</div>
+        <div className="import-box-text">JSONファイルをドロップまたはクリックして選択</div>
+        <div className="import-box-sub">products.json</div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json"
+          style={{ display: "none" }}
+          onChange={(e) => handleFile(e.target.files[0])}
+        />
+      </div>
+
+      <div className="import-divider">── または JSON を直接ペースト ──</div>
+
+      <textarea
+        className="import-paste"
+        value={pasteText}
+        onChange={(e) => setPasteText(e.target.value)}
+        placeholder='{"destinations": [...], "products": [...]}'
+      />
+
+      <div className="import-actions">
+        <button
+          className="btn btn-add"
+          disabled={!pasteText.trim()}
+          onClick={() => processJson(pasteText)}
+        >
+          読み込む
+        </button>
+      </div>
+
+      {error && <div className="import-error">{error}</div>}
+    </div>
+  );
+}
+
+// === Data Management Modal ===
+function DataModal({ data, onClose, onReimport, onClear }) {
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "products.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal">
+        <div className="modal-title">データ管理</div>
+
+        <div className="modal-section">
+          <div className="modal-section-title">現在のデータ</div>
+          <div className="modal-info">
+            製品数: {data.products.length}件 ／ 使用先: {data.destinations.length}件
+          </div>
+          <button className="btn btn-secondary" onClick={handleExport}>JSONファイルをエクスポート</button>
+        </div>
+
+        <div className="modal-section">
+          <div className="modal-section-title">データの入れ替え</div>
+          <div className="modal-info">
+            新しいJSONファイルで製品データを上書きします。
+          </div>
+          <button className="btn btn-secondary" onClick={onReimport}>再インポート</button>
+        </div>
+
+        <div className="modal-section">
+          <div className="modal-section-title">データの削除</div>
+          <div className="modal-info">
+            ブラウザに保存されている製品データを完全に削除します。
+          </div>
+          <button className="btn btn-danger" onClick={() => {
+            if (window.confirm("製品データを削除しますか？次回アクセス時にインポート画面が表示されます。")) {
+              onClear();
+            }
+          }}>データを削除</button>
+        </div>
+
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose}>閉じる</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === Searchable Select ===
+function SearchableSelect({ products, value, onChange }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+  const listRef = useRef(null);
+
+  const selected = products.find(p => p.code === value);
+
+  const q = query.toLowerCase();
+  const filtered = q
+    ? products.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.code.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q)
+      )
+    : products;
+
+  const grouped = [];
+  let lastCat = null;
+  filtered.forEach(p => {
+    if (p.category !== lastCat) {
+      grouped.push({ type: "group", label: p.category });
+      lastCat = p.category;
+    }
+    grouped.push({ type: "item", product: p });
+  });
+
+  const items = grouped.filter(g => g.type === "item");
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
+      setOpen(true); e.preventDefault(); return;
+    }
+    if (!open) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx(prev => Math.min(prev + 1, items.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx(prev => Math.max(prev - 1, 0)); }
+    else if (e.key === "Enter" && activeIdx >= 0 && activeIdx < items.length) { e.preventDefault(); selectProduct(items[activeIdx].product); }
+    else if (e.key === "Escape") setOpen(false);
+  };
+
+  const selectProduct = (p) => { onChange(p.code); setQuery(""); setOpen(false); setActiveIdx(-1); };
+  const clearSelection = () => { onChange(""); setQuery(""); setTimeout(() => inputRef.current?.focus(), 0); };
+
+  useEffect(() => {
+    if (activeIdx >= 0 && listRef.current) {
+      const el = listRef.current.querySelector(`[data-idx="${activeIdx}"]`);
+      if (el) el.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeIdx]);
+
+  if (selected) {
+    return (
+      <div className="selected-tag">
+        <span>{selected.name}</span>
+        <button className="clear-btn" onClick={clearSelection} title="選択解除">×</button>
+      </div>
+    );
+  }
+
+  let itemIdx = -1;
+  return (
+    <div className={`search-select ${open ? "open" : ""}`} ref={containerRef}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); setActiveIdx(-1); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={handleKeyDown}
+        placeholder="製品名・コードで検索..."
+      />
+      <div className="dropdown" ref={listRef}>
+        {filtered.length === 0 ? (
+          <div className="dropdown-empty">該当なし</div>
+        ) : (
+          grouped.map((g, i) => {
+            if (g.type === "group") return <div key={`g-${i}`} className="dropdown-group-label">{g.label}</div>;
+            itemIdx++;
+            const idx = itemIdx;
+            return (
+              <div
+                key={g.product.code}
+                data-idx={idx}
+                className={`dropdown-item ${idx === activeIdx ? "active" : ""}`}
+                onMouseEnter={() => setActiveIdx(idx)}
+                onClick={() => selectProduct(g.product)}
+              >
+                {g.product.name}
+                <span className="code">{g.product.code}</span>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// === Main App ===
+function App() {
+  const [data, setData] = useState(() => loadData());
+  const [showModal, setShowModal] = useState(false);
+  const [selectedCode, setSelectedCode] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [destination, setDestination] = useState("");
+  const [patientName, setPatientName] = useState("");
+  const [queue, setQueue] = useState([]);
+
+  // Set default destination when data loads
+  useEffect(() => {
+    if (data && data.destinations.length > 0 && !destination) {
+      setDestination(data.destinations[0]);
+    }
+  }, [data]);
+
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+
+  // No data → import screen
+  if (!data) {
+    return (
+      <>
+        <div className="app-header">
+          <div className="left">出庫依頼書作成 <span>v2.0</span></div>
+        </div>
+        <ImportScreen onImport={(d) => setData(d)} />
+      </>
+    );
+  }
+
+  const products = data.products;
+  const destinations = data.destinations;
+  const selectedProduct = products.find(p => p.code === selectedCode);
+
+  const handleAdd = () => {
+    if (!selectedProduct) return;
+    setQueue(prev => [...prev, {
+      id: Date.now(),
+      date: dateStr,
+      code: selectedProduct.code,
+      productName: selectedProduct.name,
+      quantity,
+      destination,
+      patientName: patientName.trim(),
+    }]);
+    setSelectedCode("");
+    setQuantity(1);
+    setPatientName("");
+  };
+
+  const handleRemove = (id) => setQueue(prev => prev.filter(e => e.id !== id));
+  const handleClearAll = () => { if (window.confirm("印刷キューをすべて削除しますか？")) setQueue([]); };
+
+  const pages = [];
+  for (let i = 0; i < queue.length; i += 2) pages.push([queue[i], queue[i + 1] || null]);
+
+  return (
+    <>
+      <div className="app-header">
+        <div className="left">出庫依頼書作成 <span>v2.0</span></div>
+        <button className="header-btn" onClick={() => setShowModal(true)}>データ管理</button>
+      </div>
+
+      <div className="app-container">
+        <div className="form-section">
+          <div className="form-row">
+            <div className="form-group">
+              <label>依頼日</label>
+              <input type="text" value={dateStr} readOnly style={{ background: '#f5f5f0' }} />
+            </div>
+            <div className="form-group">
+              <label>使用先</label>
+              <select value={destination} onChange={e => setDestination(e.target.value)}>
+                {destinations.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>製品名</label>
+              <SearchableSelect products={products} value={selectedCode} onChange={setSelectedCode} />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group narrow">
+              <label>出庫数</label>
+              <input type="number" min="1" value={quantity}
+                onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+            </div>
+            <div className="form-group">
+              <label>患者名</label>
+              <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="任意" />
+            </div>
+            <div className="form-group narrow" style={{ justifyContent: 'flex-end' }}>
+              <button className="btn btn-add" onClick={handleAdd} disabled={!selectedProduct}>追加</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="queue-section">
+          <div className="queue-title">印刷キュー（{queue.length}件）</div>
+          {queue.length === 0 ? (
+            <div className="queue-empty">依頼書を追加してください</div>
+          ) : queue.map(entry => (
+            <div key={entry.id} className="queue-item">
+              <div className="queue-item-info">
+                <strong>{entry.productName}</strong> × {entry.quantity}
+                <div className="queue-item-meta">
+                  {entry.destination}{entry.patientName && ` ／ ${entry.patientName}`}{` ／ ${entry.date}`}
+                </div>
+              </div>
+              <button className="btn btn-remove" onClick={() => handleRemove(entry.id)}>削除</button>
+            </div>
+          ))}
+        </div>
+
+        {queue.length > 0 && (
+          <div className="actions-bar">
+            <div className="actions-left">
+              <button className="btn btn-danger" onClick={handleClearAll}>全削除</button>
+              <span className="page-info">{pages.length}ページ（A4 × {pages.length}枚）</span>
+            </div>
+            <button className="btn btn-print" onClick={() => window.print()}>印刷</button>
+          </div>
+        )}
+      </div>
+
+      {/* Print */}
+      <div className="print-area">
+        {pages.map((pair, pi) => (
+          <div key={pi} className="print-page">
+            {pair.map((entry, si) =>
+              entry ? (
+                <div key={si} className="print-slip">
+                  <div className="slip-title">出 庫 依 頼 書</div>
+                  <table className="slip-table"><tbody>
+                    <tr><th>依頼日</th><td>{entry.date}</td></tr>
+                    <tr><th>製品名</th><td>{entry.productName}</td></tr>
+                    <tr><th>出庫数</th><td>{entry.quantity}</td></tr>
+                    <tr><th>使用先</th><td>{entry.destination}</td></tr>
+                    <tr><th>患者名</th><td>{entry.patientName || ""}</td></tr>
+                  </tbody></table>
+                </div>
+              ) : <div key={si} className="print-slip slip-empty" />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <DataModal
+          data={data}
+          onClose={() => setShowModal(false)}
+          onReimport={() => {
+            localStorage.removeItem(LS_KEY);
+            setData(null);
+            setShowModal(false);
+          }}
+          onClear={() => {
+            localStorage.removeItem(LS_KEY);
+            setData(null);
+            setShowModal(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
