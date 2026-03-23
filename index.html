@@ -760,6 +760,10 @@ function App() {
   const destinations = data.destinations;
   const selectedProduct = products.find(p => p.code === selectedCode);
 
+  // ディスク・バー系はコードで印刷、それ以外は名前で印刷
+  const isCodePrint = (cat) => /ディスク|バー|PolyFlex|PMMA|Wax|ジルコニア/.test(cat);
+  const getPrintLabel = (entry) => isCodePrint(entry.category) ? entry.code : entry.productName;
+
   const handleAdd = () => {
     if (!selectedProduct) return;
     setQueue(prev => [...prev, {
@@ -767,6 +771,7 @@ function App() {
       date: dateStr,
       code: selectedProduct.code,
       productName: selectedProduct.name,
+      category: selectedProduct.category,
       quantity,
       destination,
       patientName: patientName.trim(),
@@ -834,9 +839,9 @@ function App() {
           ) : queue.map(entry => (
             <div key={entry.id} className="queue-item">
               <div className="queue-item-info">
-                <strong>{entry.productName}</strong> × {entry.quantity}
+                <strong>{getPrintLabel(entry)}</strong> × {entry.quantity}
                 <div className="queue-item-meta">
-                  {entry.destination}{entry.patientName && ` ／ ${entry.patientName}`}{` ／ ${entry.date}`}
+                  {isCodePrint(entry.category) && entry.productName + " ／ "}{entry.destination}{entry.patientName && ` ／ ${entry.patientName}`}{` ／ ${entry.date}`}
                 </div>
               </div>
               <button className="btn btn-remove" onClick={() => handleRemove(entry.id)}>削除</button>
@@ -865,7 +870,7 @@ function App() {
                   <div className="slip-title">出 庫 依 頼 書</div>
                   <table className="slip-table"><tbody>
                     <tr><th>依頼日</th><td>{entry.date}</td></tr>
-                    <tr><th>製品名</th><td>{entry.productName}</td></tr>
+                    <tr><th>製品名</th><td>{getPrintLabel(entry)}</td></tr>
                     <tr><th>出庫数</th><td>{entry.quantity}</td></tr>
                     <tr><th>使用先</th><td>{entry.destination}</td></tr>
                     <tr><th>患者名</th><td>{entry.patientName || ""}</td></tr>
