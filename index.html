@@ -760,9 +760,8 @@ function App() {
   const destinations = data.destinations;
   const selectedProduct = products.find(p => p.code === selectedCode);
 
-  // ディスク・バー系はコードで印刷、それ以外は名前で印刷
-  const isCodePrint = (cat) => /ディスク|バー|PolyFlex|PMMA|Wax|ジルコニア/.test(cat);
-  const getPrintLabel = (entry) => isCodePrint(entry.category) ? entry.code : entry.productName;
+  // printCode: trueならコード、falseなら名前を印刷
+  const getPrintLabel = (entry) => entry.printCode ? entry.code : entry.productName;
 
   const handleAdd = () => {
     if (!selectedProduct) return;
@@ -771,7 +770,7 @@ function App() {
       date: dateStr,
       code: selectedProduct.code,
       productName: selectedProduct.name,
-      category: selectedProduct.category,
+      printCode: selectedProduct.printCode ?? false,
       quantity,
       destination,
       patientName: patientName.trim(),
@@ -841,7 +840,7 @@ function App() {
               <div className="queue-item-info">
                 <strong>{getPrintLabel(entry)}</strong> × {entry.quantity}
                 <div className="queue-item-meta">
-                  {isCodePrint(entry.category) && entry.productName + " ／ "}{entry.destination}{entry.patientName && ` ／ ${entry.patientName}`}{` ／ ${entry.date}`}
+                  {entry.printCode && entry.productName + " ／ "}{entry.destination}{entry.patientName && ` ／ ${entry.patientName}`}{` ／ ${entry.date}`}
                 </div>
               </div>
               <button className="btn btn-remove" onClick={() => handleRemove(entry.id)}>削除</button>
