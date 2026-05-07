@@ -870,6 +870,7 @@ function App() {
                   <table className="slip-table"><tbody>
                     <tr><th>依頼日</th><td>{entry.date}</td></tr>
                     <tr><th>製品名</th><td>{getPrintLabel(entry)}</td></tr>
+                    <tr><th>ロット</th><td></td></tr>
                     <tr><th>出庫数</th><td>{entry.quantity}</td></tr>
                     <tr><th>使用先</th><td>{entry.destination}</td></tr>
                     <tr><th>患者名</th><td>{entry.patientName || ""}</td></tr>
