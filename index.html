@@ -425,7 +425,7 @@
     .slip-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11pt;
+      font-size: 13pt;
       font-family: 'Noto Sans JP', sans-serif;
     }
     .slip-table th, .slip-table td {
@@ -733,6 +733,7 @@ function App() {
   const [destination, setDestination] = useState("");
   const [patientName, setPatientName] = useState("");
   const [queue, setQueue] = useState([]);
+  const [useJa, setUseJa] = useState(() => localStorage.getItem('shukko_use_ja') === 'true');
 
   // Set default destination when data loads
   useEffect(() => {
@@ -761,8 +762,14 @@ function App() {
   const selectedProduct = products.find(p => p.code === selectedCode);
 
   // printCode: trueならコード、falseなら名前を印刷
-  const getDisplayName = (entry) => entry.nameJa ?? entry.productName;
+  const getDisplayName = (entry) => (useJa && entry.nameJa) ? entry.nameJa : entry.productName;
   const getPrintLabel = (entry) => entry.printCode ? `${getDisplayName(entry)}（${entry.code}）` : getDisplayName(entry);
+
+  const toggleJa = () => {
+    const next = !useJa;
+    setUseJa(next);
+    localStorage.setItem('shukko_use_ja', String(next));
+  };
 
   const handleAdd = () => {
     if (!selectedProduct) return;
@@ -792,7 +799,13 @@ function App() {
     <>
       <div className="app-header">
         <div className="left">出庫依頼書作成 <span>v2.0</span></div>
-        <button className="header-btn" onClick={() => setShowModal(true)}>データ管理</button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button className="header-btn" onClick={toggleJa}
+            style={{ background: useJa ? 'var(--accent)' : '', color: useJa ? '#fff' : '' }}>
+            {useJa ? 'ひらがな表示 ON' : 'ひらがな表示 OFF'}
+          </button>
+          <button className="header-btn" onClick={() => setShowModal(true)}>データ管理</button>
+        </div>
       </div>
 
       <div className="app-container">
