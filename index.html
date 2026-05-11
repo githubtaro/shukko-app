@@ -761,7 +761,8 @@ function App() {
   const selectedProduct = products.find(p => p.code === selectedCode);
 
   // printCode: trueならコード、falseなら名前を印刷
-  const getPrintLabel = (entry) => entry.printCode ? `${entry.productName}（${entry.code}）` : entry.productName;
+  const getDisplayName = (entry) => entry.nameJa ?? entry.productName;
+  const getPrintLabel = (entry) => entry.printCode ? `${getDisplayName(entry)}（${entry.code}）` : getDisplayName(entry);
 
   const handleAdd = () => {
     if (!selectedProduct) return;
@@ -770,6 +771,7 @@ function App() {
       date: dateStr,
       code: selectedProduct.code,
       productName: selectedProduct.name,
+      nameJa: selectedProduct.nameJa ?? null,
       printCode: selectedProduct.printCode ?? false,
       quantity,
       destination,
