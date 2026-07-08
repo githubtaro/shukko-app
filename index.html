@@ -125,15 +125,6 @@
     margin-top: 12px;
   }
 
-  .import-success {
-    background: var(--highlight);
-    border: 1px solid #a3c49a;
-    color: var(--accent);
-    padding: 8px 12px;
-    font-size: 13px;
-    margin-top: 12px;
-  }
-
   /* === Data Management Modal === */
   .modal-overlay {
     position: fixed;
@@ -376,7 +367,7 @@
   .queue-item-info strong { font-weight: 500; }
   .queue-item-meta { color: var(--text-sub); font-size: 12px; margin-top: 2px; }
 
-  /* 案A: 寸法・シェード部分の強調（画面のみ、印刷には影響しない） */
+  /* v2.20統合: 寸法・シェード等の強調（画面のみ、印刷には適用しない） */
   .hl {
     font-weight: 700;
     background: #fff3bf;
@@ -384,7 +375,7 @@
     border-radius: 2px;
   }
 
-  /* 案B: 追加直後のハイライト */
+  /* v2.20統合: 追加直後のハイライト */
   @keyframes flashAdd {
     0%   { background: var(--highlight); border-color: var(--accent); }
     70%  { background: var(--highlight); border-color: var(--accent); }
@@ -446,12 +437,12 @@
     .slip-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11pt;
+      font-size: 13pt;
       font-family: 'Noto Sans JP', sans-serif;
     }
     .slip-table th, .slip-table td {
       border: 1px solid #333;
-      padding: 4mm 5mm;
+      padding: 2mm 5mm;
       text-align: left;
     }
     .slip-table th {
@@ -472,9 +463,10 @@
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.9/babel.min.js"></script>
 
 <script type="text/babel">
-const { useState, useRef, useEffect, useCallback } = React;
+const { useState, useRef, useEffect } = React;
 
 const LS_KEY = "shukko_product_data";
+const APP_VERSION = "v2.20";
 
 function loadData() {
   try {
@@ -492,9 +484,13 @@ function validateData(data) {
   if (!data || typeof data !== "object") return "JSONオブジェクトではありません";
   if (!Array.isArray(data.products) || data.products.length === 0) return "products配列が空または存在しません";
   if (!Array.isArray(data.destinations) || data.destinations.length === 0) return "destinations配列が空または存在しません";
+  const seenCodes = new Set();
   for (let i = 0; i < data.products.length; i++) {
     const p = data.products[i];
     if (!p.category || !p.code || !p.name) return `products[${i}] に category/code/name が不足しています`;
+    if (seenCodes.has(p.code)) return `商品コード "${p.code}" が重複しています（products[${i}]）`;
+    seenCodes.add(p.code);
+    if (p.printCode !== undefined && typeof p.printCode !== "boolean") return `products[${i}] の printCode は true/false で指定してください`;
   }
   return null;
 }
@@ -584,7 +580,7 @@ function ImportScreen({ onImport }) {
 }
 
 // === Data Management Modal ===
-function DataModal({ data, onClose, onReimport, onClear }) {
+function DataModal({ data, onClose, onReset }) {
   const handleExport = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -609,23 +605,15 @@ function DataModal({ data, onClose, onReimport, onClear }) {
         </div>
 
         <div className="modal-section">
-          <div className="modal-section-title">データの入れ替え</div>
+          <div className="modal-section-title">データの入れ替え・削除</div>
           <div className="modal-info">
-            新しいJSONファイルで製品データを上書きします。
-          </div>
-          <button className="btn btn-secondary" onClick={onReimport}>再インポート</button>
-        </div>
-
-        <div className="modal-section">
-          <div className="modal-section-title">データの削除</div>
-          <div className="modal-info">
-            ブラウザに保存されている製品データを完全に削除します。
+            現在のデータを削除し、インポート画面に戻ります。新しいJSONを読み込み直す場合もこちらから。
           </div>
           <button className="btn btn-danger" onClick={() => {
-            if (window.confirm("製品データを削除しますか？次回アクセス時にインポート画面が表示されます。")) {
-              onClear();
+            if (window.confirm("製品データを削除しますか？インポート画面に戻ります。")) {
+              onReset();
             }
-          }}>データを削除</button>
+          }}>データを削除してインポート画面へ</button>
         </div>
 
         <div className="modal-actions">
@@ -636,10 +624,10 @@ function DataModal({ data, onClose, onReimport, onClear }) {
   );
 }
 
-// === Searchable Select ===
-// === 識別部分の強調（案A） ===
-// 寸法（6*2.5mm, 20mm）、シェード（A2-HT, A3.5）、サイズ（12, 14L）等を検出
-const HL_RE = /(\d+(?:\.\d+)?\s*\*\s*\d+(?:\.\d+)?mm|\d+(?:\.\d+)?mm|A\d(?:\.\d)?(?:-(?:HT|LT))?|\b14L\b|\b1[24]\b|\bBL\b|\bBW\b|Bright White|Clear|Pink|\bHT\b|\bLT\b)/g;
+// === 識別部分の強調（v2.20統合） ===
+// 寸法（6*2.5mm, 20mm）、φ径（Gen2バー用）、厚み（12T）、シェード（A2-HT, A3.5）、サイズ（12, 14L）等を検出
+// 除外: (6mm shaft) のシャフト径は全バー共通のためハイライトしない
+const HL_RE = /(\d+(?:\.\d+)?\s*\*\s*\d+(?:\.\d+)?mm|\d+(?:\.\d+)?mm(?!\s*shaft)|φ\d+(?:\.\d+)?|\d+T\b|A\d(?:\.\d)?(?:-(?:HT|LT))?|\b14L\b|\b1[24]\b|\bBL\b|\bBW\b|Bright White|Clear|Pink|\bHT\b|\bLT\b)/g;
 
 function Highlight({ text }) {
   const parts = String(text).split(HL_RE);
@@ -652,6 +640,7 @@ function Highlight({ text }) {
   );
 }
 
+// === Searchable Select ===
 function SearchableSelect({ products, value, onChange }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -770,6 +759,7 @@ function App() {
   const [patientName, setPatientName] = useState("");
   const [queue, setQueue] = useState([]);
   const [lastAddedId, setLastAddedId] = useState(null);
+  const [useJa, setUseJa] = useState(() => localStorage.getItem('shukko_use_ja') === 'true');
 
   // Set default destination when data loads
   useEffect(() => {
@@ -778,15 +768,18 @@ function App() {
     }
   }, [data]);
 
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+  const formatToday = () => {
+    const d = new Date();
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+  };
+  const dateStr = formatToday(); // 画面表示用（レンダリング時点）
 
   // No data → import screen
   if (!data) {
     return (
       <>
         <div className="app-header">
-          <div className="left">出庫依頼書作成 <span>v2.2</span></div>
+          <div className="left">出庫依頼書作成 <span>{APP_VERSION}</span></div>
         </div>
         <ImportScreen onImport={(d) => setData(d)} />
       </>
@@ -798,22 +791,30 @@ function App() {
   const selectedProduct = products.find(p => p.code === selectedCode);
 
   // printCode: trueならコード、falseなら名前を印刷
-  const getPrintLabel = (entry) => entry.printCode ? entry.code : entry.productName;
+  const getDisplayName = (entry) => (useJa && entry.nameJa) ? entry.nameJa : entry.productName;
+  const getPrintLabel = (entry) => entry.printCode ? `${getDisplayName(entry)}（${entry.code}）` : getDisplayName(entry);
+
+  const toggleJa = () => {
+    const next = !useJa;
+    setUseJa(next);
+    localStorage.setItem('shukko_use_ja', String(next));
+  };
 
   const handleAdd = () => {
     if (!selectedProduct) return;
     const id = Date.now();
     setQueue(prev => [...prev, {
       id,
-      date: dateStr,
+      date: formatToday(), // 追加ボタン押下時点の日付（タブ放置時の日付ずれ防止）
       code: selectedProduct.code,
       productName: selectedProduct.name,
+      nameJa: selectedProduct.nameJa ?? null,
       printCode: selectedProduct.printCode ?? false,
       quantity,
       destination,
       patientName: patientName.trim(),
     }]);
-    // 案B: 追加直後の項目を4秒間ハイライト
+    // v2.20統合: 追加直後の項目を4秒間ハイライト
     setLastAddedId(id);
     setTimeout(() => setLastAddedId(cur => (cur === id ? null : cur)), 4000);
     setSelectedCode("");
@@ -830,8 +831,14 @@ function App() {
   return (
     <>
       <div className="app-header">
-        <div className="left">出庫依頼書作成 <span>v2.2</span></div>
-        <button className="header-btn" onClick={() => setShowModal(true)}>データ管理</button>
+        <div className="left">出庫依頼書作成 <span>{APP_VERSION}</span></div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button className="header-btn" onClick={toggleJa}
+            style={{ background: useJa ? 'var(--accent)' : '', color: useJa ? '#fff' : '' }}>
+            {useJa ? 'ひらがな表示 ON' : 'ひらがな表示 OFF'}
+          </button>
+          <button className="header-btn" onClick={() => setShowModal(true)}>データ管理</button>
+        </div>
       </div>
 
       <div className="app-container">
@@ -839,7 +846,7 @@ function App() {
           <div className="form-row">
             <div className="form-group">
               <label>依頼日</label>
-              <input type="text" value={dateStr} readOnly style={{ background: '#f5f5f0' }} />
+              <div style={{ padding: '8px 0', fontWeight: 600 }}>{dateStr}</div>
             </div>
             <div className="form-group">
               <label>使用先</label>
@@ -879,9 +886,12 @@ function App() {
           ) : queue.map(entry => (
             <div key={entry.id} className={`queue-item ${entry.id === lastAddedId ? "just-added" : ""}`}>
               <div className="queue-item-info">
-                <strong><Highlight text={getPrintLabel(entry)} /></strong> × {entry.quantity}
+                <strong>
+                  <Highlight text={getDisplayName(entry)} />
+                  {entry.printCode && `（${entry.code}）`}
+                </strong> × {entry.quantity}
                 <div className="queue-item-meta">
-                  {entry.printCode && <><Highlight text={entry.productName} /> ／ </>}{entry.destination}{entry.patientName && ` ／ ${entry.patientName}`}{` ／ ${entry.date}`}
+                  {entry.destination}{entry.patientName && ` ／ ${entry.patientName}`}{` ／ ${entry.date}`}
                 </div>
               </div>
               <button className="btn btn-remove" onClick={() => handleRemove(entry.id)}>削除</button>
@@ -907,10 +917,11 @@ function App() {
             {pair.map((entry, si) =>
               entry ? (
                 <div key={si} className="print-slip">
-                  <div className="slip-title">出 庫 依 頼 書</div>
+                  <div className="slip-title">出庫依頼書</div>
                   <table className="slip-table"><tbody>
                     <tr><th>依頼日</th><td>{entry.date}</td></tr>
                     <tr><th>製品名</th><td>{getPrintLabel(entry)}</td></tr>
+                    <tr><th>ロット</th><td></td></tr>
                     <tr><th>出庫数</th><td>{entry.quantity}</td></tr>
                     <tr><th>使用先</th><td>{entry.destination}</td></tr>
                     <tr><th>患者名</th><td>{entry.patientName || ""}</td></tr>
@@ -927,12 +938,7 @@ function App() {
         <DataModal
           data={data}
           onClose={() => setShowModal(false)}
-          onReimport={() => {
-            localStorage.removeItem(LS_KEY);
-            setData(null);
-            setShowModal(false);
-          }}
-          onClear={() => {
+          onReset={() => {
             localStorage.removeItem(LS_KEY);
             setData(null);
             setShowModal(false);
